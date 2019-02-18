@@ -6,10 +6,9 @@ import (
     "encoding/csv"
     "strings"
     "io/ioutil"
-    //"sort"
+    "os"
     "strconv"
 )
-var xlsxWrite *excelize.File
 var xlsxRead1 *excelize.File
 var xlsxRead2 []byte
 var err error
@@ -21,143 +20,787 @@ var firstName string
 var readtable []string
 var ss[][]string
 var sz int
-var addr1 string ="C:/Users/EDZ/Desktop/CHPA市场匹配表/市场定义表/Market+Definition+for+Report+Automation+1108V3.xlsx"
+var w * csv.Writer
+var addr1 string ="CHPA市场匹配表/市场定义表/Market+Definition+for+Report+Automation+1108V3.xlsx"
 var addr2 string
-var insertRow int =2
 
-//var thelastindex int=2
+var sheet string="Existing product Market definit"
+var lastmak string=" "
 func main() {
     ReadTable()
     readtable= RemoveDuplicatesAndEmpty(readtable)
-    
     for _,data:=range readtable{
-       SetFormat()
-        insertRow=2
-        for i:=2;i<13;i++{
+        if data=="Ceclor Solid "||data=="Ceclor Liquid "||data=="Ceclor Total "{
+            continue
+        }
+        f, err := os.Create(data+"_CHPA_BRAND_1_MAPPING.csv") //创建文件
+        if err != nil {
+            panic(err)
+        }
+	    defer f.Close()
+	    f.WriteString("\xEF\xBB\xBF") // 写入UTF-8 BOM
+        w = csv.NewWriter(f) //创建一个新的写入文件流
+        w.Write([]string{"DISPLAY", "COMPS DESC", "PRODUCT DESC","PACK DESC","Name"})  
+        for i:=2;i<300;i++{
+            if i==96{
+                fmt.Println("aaa")
+            }
             Place:="B"+strconv.Itoa(i)
-            cellB := xlsxRead1.GetCellValue("New product Market definition", Place)
+            cellB:=xlsxRead1.GetCellValue(sheet, Place)
+            if len(cellB)==0{
+                break
+            }
+            if lastmak==cellB{
+                continue
+            }
+            lastmak=cellB
             if len(cellB)>0&&data==cellB[0:len(data)]{
-                Place="E"+strconv.Itoa(i)
-                cellE := xlsxRead1.GetCellValue("New product Market definition", Place)[0:5]
-                if cellE!="See b"{
-                    Place="C"+strconv.Itoa(i)
-                    cellC:= xlsxRead1.GetCellValue("New product Market definition", Place)
-                    datas:=strings.SplitAfter(cellC, "\n") 
-                    if data=="Oncology Elunate"{
-                        WriteFirstOnoE(data,cellB,datas)
-                        RepeatFirstE(data,cellB,datas)
-                    }else if data=="Oncology Tyvyt"{
-                        if cellB=="Oncology Tyvyt Oncology market"{
-                            WriteFirstOnoT(data,cellB,datas)
-                        }else if cellB=="Oncology Tyvyt PD-1 market"{
-                            WriteFirstOnoE(data,cellB,datas)
-                            RepeatFirstE(data,cellB,datas)
-                        }
-                    }else{
-                        WriteFirst(data,cellB,datas)
-                        RepeatFirst(data,cellB,datas)
-                        //ReadPainDates(data,datas)   
-                        //WriteSecond(data)
-                    }   
-                }else if cellE=="See b"{
-                    Place="C"+strconv.Itoa(i)
-                    cellC:= xlsxRead1.GetCellValue("New product Market definition", Place)
-                    datas:=strings.SplitAfter(cellC, "\n") 
-                    WriteFirst(data,cellB,datas)                   
-                    //ReadPainDates()
-                   // Save(data)
-                    ReadPainDates(data,datas)   
-                    WriteSecond(data)
+                Place="C"+strconv.Itoa(i)
+                cellC := xlsxRead1.GetCellValue(sheet, Place)
+                datas:=strings.SplitAfter(cellC, "\n")
+                if cellC[0:3]=="L01"{
+                    RepeatWriteFirstOnoT(data,cellB[len(data)+1:],datas)
+                    WriteFirstOnoT(data,"Total Mkt",datas)
+                    WriteFirstOnoT(data,cellB[len(data)+1:],datas)   
+                    break  
+                }else if cellB=="Prozac Lilly relevant MKT "{
+                    WriteAnti(data,"Total Mkt",datas)   
+                    WriteAnti(data,cellB[len(data)+1:],datas)           
+                    RepeatWriteJ(data,cellB[len(data)+1:],datas)           
+                }else if cellB=="Prozac Prozac AD Branded Market"{
+                    WriteJ(data,"Total Mkt",datas) 
+                    WriteJ(data,cellB[len(data)+1:],datas)             
+                    RepeatWriteJ(data,cellB[len(data)+1:],datas)     
+                    break    
+                }else if cellB=="Zyprexa Branded MKT "{
+                    WriteJ(data,"Total Mkt",datas) 
+                    RepeatWriteZ(data,cellB[len(data)+1:],datas)
+                    WriteZ(data,cellB[len(data)+1:],datas)
+                }else if cellB=="Strattera Relevant market "{
+                    RepeatWriteJ2(data,cellB[len(data)+1:],datas)
+                    WriteJ(data,cellB[len(data)+1:],datas)  
+                    RepeatWriteJ2(data,data,datas)
                     break
+                }else if cellB=="CIALIS PDE-5"{                    
+                    cellC:= xlsxRead1.GetCellValue("New product Market definition", "C4")
+                    datas:=strings.SplitAfter(cellC, "\n") 
+                    WriteFirst("Cialis BPH","Cialis BPH market",datas)                   
+                    ReadPainDates("Cialis BPH",datas) 
+                    datas= RemoveDuplicatesAndEmpty(datas)  
+                    WriteSecond("Cialis BPH")     
+                }else if cellB=="EVISTA WOMEN'S HEALTH Market"{
+                    RepeatWriteZ(data,cellB[len(data)+1:],datas) 
+                    WriteZ(data,cellB[len(data)+1:],datas) 
+                    RepeatWriteZ(data,"OP MKT",datas)
+                    RepeatWriteB(data,cellB[len(data)+1:],datas) 
+                    break    
+                }else if cellB=="Trulicity GLP-1 relevant market (A10S)"{
+                    WriteD(data,"Total Mkt",datas) 
+                    WriteD(data,cellB[len(data)+1:],datas) 
+                    RepeatWriteD(data,cellB[len(data)+1:],datas)                   
+                    break    
+                }else if cellB=="Insulin Total Lilly Insulin"{
+                    WriteA10C_D(data,"Lilly Insulin MKT",datas)    
+                    WriteA10C_D(data,cellB[len(data)+1:],datas)    
+                }else if cellB=="Insulin Total Animal Insulin"{
+                    WriteA10D(data,"Animal Insulin MKT",datas) 
+                    WriteA10D(data,cellB[len(data)+1:],datas)          
+                }else if cellB=="Insulin Total Human Insulin"{
+                    WriteFirstHuman(data,"Human Insulin MKT",datas) 
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)     
+                    RepeatWriteHuman(data,cellB[len(data)+1:],datas)      
+                }else if cellB=="Insulin Total Mealtime Analog"{
+                    WriteFirstHuman(data,"Mealtime Analog MKT",datas) 
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)     
+                    RepeatWriteHuman(data,cellB[len(data)+1:],datas)   
+                }else if cellB=="Insulin Mealtime analog"{
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)
+                    RepeatWriteFamily(data,cellB[len(data)+1:],datas)
+                }else if cellB=="Insulin Rapid analog"{
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)
+                    RepeatWriteRapid(data,cellB[len(data)+1:],datas)
+                }else if cellB=="Insulin Mixture analog"{
+                    WriteFirstHuman(data,"Mixture analog MKT",datas) 
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)     
+                    RepeatWriteHuman(data,cellB[len(data)+1:],datas)    
+                }else if cellB=="Insulin Basal Analog"{
+                    WriteFirstHuman(data,"Basal Analog MKT",datas) 
+                    WriteFirstHuman(data,cellB[len(data)+1:],datas)     
+                    RepeatWriteHuman(data,cellB[len(data)+1:],datas)
+                }else if cellB=="Insulin Total Mealtime Analog Kwikpen market"{
+                    WriteFirstKwikpen(data,"Analog Kwikpen MKT",datas)
+                    WriteFirstKwikpen(data,cellB[len(data)+1:],datas)
+                    RepeatWriteKwikpen(data,cellB[len(data)+1:],datas)   
+                }else if cellB=="Insulin Total Humulin Kwikpen Market"{
+                    WriteFirstKwikpen(data,"Humulin Kwikpen MKT",datas)
+                    WriteFirstKwikpen(data,cellB[len(data)+1:],datas)
+                    RepeatWriteKwikpen(data,cellB[len(data)+1:],datas)
+                }else { 
+                    WriteFirstOnoE(data,"Total Mkt",datas)
+                    WriteFirstOnoE(data,cellB[len(data)+1:],datas)
+                    RepeatFirstE(data,cellB[len(data)+1:],datas)
+                    w.Flush()
+                  
                 }
             } 
         }
-        Save(data)
+        w.Flush()
     } 
-    //Read(addr1)
-    //ReadPainDates()   
-    //paindatas= RemoveDuplicatesAndEmpty(paindatas)
-    //SetFormat()
-    //WriteFirst()
-    //WriteSecond()  
 }
-func WriteFirstOnoT(str string,strb string,datas[]string){
-    addr2="C:/Users/EDZ/Desktop/CHPA市场匹配表/数据源/"+str+".CSV"
+func RepeatWriteFamily(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
     xlsxRead2, err := ioutil.ReadFile(addr2)
     if err != nil {
             panic(err)
     }
     r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
     ss,_= r2.ReadAll()
-    //fmt.Println(ss)
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][7])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][7][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                w.Write([]string{ss[i][7]+" Family",
+                ss[i][2],
+                ss[i][7],
+                ss[i][11],
+            strb+"MAPPING"}) 
+            }
+         }
+    }
+}
+func RepeatWriteRapid(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][7])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][7][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                w.Write([]string{ss[i][7]+" Rapid",ss[i][2],ss[i][7],ss[i][11],strb+"MAPPING"})
+            }
+         }
+    }
+}
+func RepeatWriteKwikpen(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        data=data[0:4]
+        if data=="HUMA"{
+            for i:=0;i<sz;i++{
+                if len(ss[i][11])<len(data)-1{
+                    continue
+                }
+                data2:=ss[i][11][0:len(data)]+"\n"
+                /*a1:=len(data)
+                a2:=len(data2)
+                fmt.Println(a1,a2)*/
+                if data==data2{
+                    w.Write([]string{ss[i][7],
+                        ss[i][0],
+                        ss[i][7],
+                        ss[i][11],
+                    strb+"MAPPING"})
+                }
+             }
+        }else if data=="NOVO"{
+            for i:=0;i<sz;i++{
+                if len(ss[i][7])<len(data)-1{
+                    continue
+                }
+                data2:=ss[i][7][0:len(data)]+"\n"
+                /*a1:=len(data)
+                a2:=len(data2)
+                fmt.Println(a1,a2)*/
+                if data==data2{
+                    w.Write([]string{ss[i][7],
+                        ss[i][2],
+                        ss[i][7],
+                        ss[i][11],
+                    strb+"MAPPING"})
+                }
+             }
+        }
+       
+    }
+}
+func WriteFirstKwikpen(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        data=data[0:4]
+        if data=="HUMA"{
+            for i:=0;i<sz;i++{
+                if len(ss[i][11])<len(data)-1{
+                    continue
+                }
+                data2:=ss[i][11][0:len(data)]
+                /*a1:=len(data)
+                a2:=len(data2)
+                fmt.Println(a1,a2)*/
+                if data==data2{
+                     w.Write([]string{strb,
+                        ss[i][2],
+                        ss[i][7],
+                        ss[i][11],
+                    strb+"MAPPING"})
+                }
+             }
+        }else if data=="NOVO"{
+            for i:=0;i<sz;i++{
+                if len(ss[i][7])<len(data)-1{
+                    continue
+                }
+                data2:=ss[i][7][0:len(data)]
+                /*a1:=len(data)
+                a2:=len(data2)
+                fmt.Println(a1,a2)*/
+                if data==data2{
+                     w.Write([]string{strb,
+                        ss[i][0],
+                        ss[i][7],
+                        ss[i][11],
+                    strb+"MAPPING"})
+                }
+             }
+        }
+       
+    }
+}
+func WriteFirstHuman(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][7])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][7][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{strb,
+                    ss[i][2],
+                    ss[i][7],
+                    ss[i][11],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func RepeatWriteHuman(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][7])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][7][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{ss[i][7],
+                    ss[i][2],
+                    ss[i][7],
+                    ss[i][11],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteA10D(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for i:=0;i<sz;i++{    
+        data2:=ss[i][2]
+        /*a1:=len(data)
+        a2:=len(data2)
+        fmt.Println(a1,a2)*/
+        if "A10D"==data2{
+             w.Write([]string{strb,
+                ss[i][2],
+                ss[i][7],
+                ss[i][11],
+            strb+"MAPPING"})
+        }
+    }
+}
+func WriteA10C_D(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for i:=0;i<sz;i++{    
+        data2:=ss[i][2]
+        /*a1:=len(data)
+        a2:=len(data2)
+        fmt.Println(a1,a2)*/
+        if "A10C"==data2||"A10D"==data2{
+             w.Write([]string{strb,
+                ss[i][2],
+                ss[i][7],
+                ss[i][11],
+            strb+"MAPPING"})
+        }
+    }
+}
+func RepeatWriteD(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][3])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][3][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{ss[i][5],
+                    ss[i][3],
+                    ss[i][5],
+                    ss[i][7],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteD(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][3])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][3][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{strb,
+                    ss[i][3],
+                    ss[i][5],
+                    ss[i][7],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func RepeatWriteB(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][9])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][9][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{ss[i][7],
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func RepeatWriteZ(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][9])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][9][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{strb,
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteZ(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if len(data)==0{
+            break
+        }
+        for i:=0;i<sz;i++{
+            if len(ss[i][9])<len(data)-1{
+                continue
+            }
+            data2:=ss[i][9][0:len(data)-1]+"\n"
+            /*a1:=len(data)
+            a2:=len(data2)
+            fmt.Println(a1,a2)*/
+            if data==data2{
+                 w.Write([]string{ss[i][9],
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func RepeatWriteJ(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if data!="MIRTAZAPINE"+"\n"{
+            for i:=0;i<sz;i++{
+            data2:=ss[i][5]+"\n"
+            if data==data2{
+                 w.Write([]string{ss[i][9],
+                ss[i][7],
+                ss[i][9],
+                ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+        }else{
+            for i:=0;i<sz;i++{
+                data2:=ss[i][7]+"\n"
+                if data==data2{
+                     w.Write([]string{ss[i][9],
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                    strb+"MAPPING"})
+                }
+        }
+        
+    }
+}
+}
+func RepeatWriteJ2(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        for i:=0;i<sz;i++{
+            if len(ss[i][9])<len(data)-2{
+                continue
+            }
+            data2:=ss[i][9]+"\n"
+            if data==data2{
+                 w.Write([]string{strb+"MKT",
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteJ(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        for i:=0;i<sz;i++{
+            if len(data)==0{
+                break
+            }
+            if len(ss[i][9])<len(data)-2{
+                continue
+            }
+            data2:=ss[i][9][0:len(data)-1]+"\n"
+            if data==data2{
+                 w.Write([]string{ss[i][9],
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteAnti(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        if data!="MIRTAZAPINE"+"\n"{
+            for i:=0;i<sz;i++{
+            data2:=ss[i][5]+"\n"
+            if data==data2{
+                 w.Write([]string{ss[i][5],
+                ss[i][7],
+                ss[i][9],
+                ss[i][13],
+                strb+"MAPPING"})
+            }
+         }
+        }else{
+            for i:=0;i<sz;i++{
+                data2:=ss[i][7]+"\n"
+                if data==data2{
+                     w.Write([]string{strb,
+                    ss[i][7],
+                    ss[i][9],
+                    ss[i][13],
+                    strb+"MAPPING"})
+                }
+        }
+        
+    }
+}
+}
+func RepeatWriteFirstOnoT(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
     sz = len(ss)
     for _,data:=range datas{
         data=strings.ToUpper(data)
         for i:=0;i<sz;i++{
             data2:=ss[i][0]+"\n"
-            /*if i==458{
-                fmt.Println("aaaaaaaaaaaaaa")
-            }*/
             if data==data2{
-                SetRow(strb,
+                 w.Write([]string{ss[i][9],
                 ss[i][7],
                 ss[i][9],
                 ss[i][13],
-                strb+"MAPPING")
+                strb+"MAPPING"})
+            }
+         }
+    }
+}
+func WriteFirstOnoT(str string,strb string,datas[]string){
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
+    xlsxRead2, err := ioutil.ReadFile(addr2)
+    if err != nil {
+            panic(err)
+    }
+    r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
+    ss,_= r2.ReadAll()
+    sz = len(ss)
+    for _,data:=range datas{
+        data=strings.ToUpper(data)
+        for i:=0;i<sz;i++{
+            data2:=ss[i][0]+"\n"
+            if data==data2{
+                 w.Write([]string{strb,
+                ss[i][7],
+                ss[i][9],
+                ss[i][13],
+                strb+"MAPPING"})
             }
          }
     }
 }
 func WriteFirstOnoE(str string,strb string,datas[]string){
-    addr2="C:/Users/EDZ/Desktop/CHPA市场匹配表/数据源/"+str+".CSV"
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
     xlsxRead2, err := ioutil.ReadFile(addr2)
     if err != nil {
             panic(err)
     }
     r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
     ss,_= r2.ReadAll()
-    //fmt.Println(ss)
     sz = len(ss)
     for _,data:=range datas{
         data=strings.ToUpper(data)
         for i:=0;i<sz;i++{
             data2:=ss[i][7]+"\n"
-            /*if i==458{
-                fmt.Println("aaaaaaaaaaaaaa")
-            }*/
             if data==data2{
-                SetRow(strb,
-                data2,
+                 w.Write([]string{strb,
+                ss[i][7],
                 ss[i][9],
                 ss[i][13],
-                strb+"MAPPING")
+                strb+"MAPPING"})
             }
          }
     }
 }
+
 func RepeatFirstE(str string,strb string,datas[]string){
-    addr2="C:/Users/EDZ/Desktop/CHPA市场匹配表/数据源/"+str+".CSV"
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
     xlsxRead2, err := ioutil.ReadFile(addr2)
     if err != nil {
             panic(err)
     }
     r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
     ss,_= r2.ReadAll()
-    //fmt.Println(ss)
     sz = len(ss)
     for _,data:=range datas{
         data=strings.ToUpper(data)
         for i:=0;i<sz;i++{
             data2:=ss[i][7]+"\n"
-           /* if i==458{
-                fmt.Println("aaaaaaaaaaaaaa")
-            }*/
             if data==data2{
-                SetRow(ss[i][9],
+                 w.Write([]string{ss[i][9],
                     ss[i][7],
                     ss[i][9],
                     ss[i][13],
-                strb+"MAPPING")
+                strb+"MAPPING"})
             }
          }
     }
@@ -169,62 +812,20 @@ func ReadTable(){
         fmt.Println(err)
         return
     }
-    rows:=xlsxRead1.GetRows("New product Market definition")
+    rows:=xlsxRead1.GetRows(sheet)
     lenrows=len(rows)
-    s := make([]string,13)
-    for i:=2;i<=11;i++{
+    s := make([]string,lenrows+2)
+    for i:=2;i<=lenrows;i++{
         Place:="A"+strconv.Itoa(i)
-        cell := xlsxRead1.GetCellValue("New product Market definition", Place)
+        cell := xlsxRead1.GetCellValue(sheet, Place)
         if len(cell)>0{
             s[i-2]=cell
         }
     }
     readtable=s
 }
-func SetFormat(){
-    
-    xlsxWrite=excelize.NewFile()
-    index := xlsxWrite.NewSheet("Sheet1")
-     //SetRow("DISPLAY","COMPS DESC","PRODUCT DESC","PACK DESC","Name")
-     xlsxWrite.SetCellValue("Sheet1", "A1", "DISPLAY")
-     xlsxWrite.SetCellValue("Sheet1", "B1", "COMPS DESC")
-     xlsxWrite.SetCellValue("Sheet1", "C1", "PRODUCT DESC")
-     xlsxWrite.SetCellValue("Sheet1", "D1", "PACK DESC")
-     xlsxWrite.SetCellValue("Sheet1", "E1", "Name")
-     xlsxWrite.SetActiveSheet(index) 
-	/*xlsxWrite:= excelize.NewFile()
-    index := xlsxWrite.NewSheet("Sheet1")
-    SetRow("Display","COMPS DESC","PRODUCT DESC","PACK DESC","Name")
-	/*xlsxWrite.SetCellValue("Sheet1", "A1", "Display")
-    xlsxWrite.SetCellValue("Sheet1", "B1", "COMPS DESC")
-    xlsxWrite.SetCellValue("Sheet1", "C1", "PRODUCT DESC")
-	xlsxWrite.SetCellValue("Sheet1", "D1", "PACK DESC")
-	xlsxWrite.SetCellValue("Sheet1", "E1", "Name")
-    xlsxWrite.SetActiveSheet(index) */
-}
-func Save(str string){
-	err := xlsxWrite.SaveAs(str+"_CHPA_ BRAND_1_MAPPING.xlsx")
-    if err != nil {
-        fmt.Println(err)
-    }
-}
-/*func Read(str string){//读第一个文件
-    xlsxRead1, err = excelize.OpenFile(str)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    //cell := xlsxRead1.GetCellValue("Sheet1", "B2")
-    //fmt.Println(cell)
 
-    firstName=xlsxRead1.GetCellValue("New product Market definition", "B2")
-    Place:=FindMolecule()
-    cell := xlsxRead1.GetCellValue("New product Market definition", Place)
-    datas=strings.SplitAfter(cell, "\n") 
-    //sort.Strings(datas)
-    //fmt.Println(RemoveDuplicatesAndEmpty(datas))
 
-}*/
 func ReadPainDates(str string,datas []string){
     s := make([]string,50)
     for i:=1;i<=lenrows;i++{
@@ -250,11 +851,11 @@ func ReadPainDates(str string,datas []string){
     }
 }
 func FindMolecule() string {
-    rows := xlsxRead1.GetRows("New product Market definition")
+    rows := xlsxRead1.GetRows(sheet)
     lenrows=len(rows)
     for i:=1;i<=lenrows;i++{
         Place:="D"+strconv.Itoa(i)
-        cell := xlsxRead1.GetCellValue("New product Market definition", Place)
+        cell := xlsxRead1.GetCellValue(sheet, Place)
         if cell=="Molecule"{
             return "C"+strconv.Itoa(i)
         }
@@ -272,18 +873,10 @@ func RemoveDuplicatesAndEmpty(a []string ) (ret [] string){
     }
     return
 }
-func SetRow(strs...string){
-    
-    xlsxWrite.SetCellValue("Sheet1", "A"+strconv.Itoa(insertRow), strs[0])
-    xlsxWrite.SetCellValue("Sheet1", "B"+strconv.Itoa(insertRow),strs[1])
-    xlsxWrite.SetCellValue("Sheet1", "C"+strconv.Itoa(insertRow), strs[2])
-	xlsxWrite.SetCellValue("Sheet1", "D"+strconv.Itoa(insertRow), strs[3])
-    xlsxWrite.SetCellValue("Sheet1", "E"+strconv.Itoa(insertRow),strs[4])
-    insertRow++
-}
+
 
 func WriteFirst(str string,strb string,datas[]string){
-    addr2="C:/Users/EDZ/Desktop/CHPA市场匹配表/数据源/"+str+".CSV"
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
     xlsxRead2, err := ioutil.ReadFile(addr2)
     if err != nil {
             panic(err)
@@ -296,35 +889,34 @@ func WriteFirst(str string,strb string,datas[]string){
         for i:=0;i<sz;i++{
             data2:=ss[i][1]+"\n"
             if data==data2{
-                SetRow(strb,
+                 w.Write([]string{strb,
                 ss[i][1],
                 ss[i][3],
                 ss[i][5],
-                strb+"MAPPING")
+                strb+"MAPPING"})
             }
          }
     }
 }
 
 func RepeatFirst(str string,strb string,datas[]string){
-    addr2="C:/Users/EDZ/Desktop/CHPA市场匹配表/数据源/"+str+".CSV"
+    addr2="CHPA市场匹配表/数据源/"+str+".CSV"
     xlsxRead2, err := ioutil.ReadFile(addr2)
     if err != nil {
             panic(err)
     }
     r2 := csv.NewReader(strings.NewReader(string(xlsxRead2)))
     ss,_= r2.ReadAll()
-    //fmt.Println(ss)
     sz = len(ss)
     for _,data:=range datas{
         for i:=0;i<sz;i++{
             data2:=ss[i][1]+"\n"
             if data==data2{
-                SetRow(data,
+                 w.Write([]string{data,
                 ss[i][1],
                 ss[i][3],
                 ss[i][5],
-                strb+"MAPPING")
+                strb+"MAPPING"})
             }
          }
     }
@@ -432,52 +1024,38 @@ func WriteSecond(str string){
     }
 
 }
-
 func GetProductSite(str string) int {
     for i:=1;i<=lenrows;i++{
         Place:="A"+strconv.Itoa(i)
-        cell := xlsxRead1.GetCellValue("New product Market definition", Place)
-        //s := make([]string,lenrows-i)
+        cell := xlsxRead1.GetCellValue(sheet, Place)       
         if cell=="Category"{
             i++
-            return i
-            /*tmp:=i
-            Place="C"+strconv.Itoa(i)
-            cell = xlsxRead1.GetCellValue("New product Market definition", Place)
-            for cell!=""{    
-                s[i-tmp]=cell
-                i++
-                site:="C"+strconv.Itoa(i)
-                cell=xlsxRead1.GetCellValue("New product Market definition", site)        
-            }
-            producttables=s
-            return  */  
+            return i 
         }
     }
     return 0
 }
 func WriteCompsDesc(data1 string,data2 string){
     for i:=0;i<sz;i++{
-        //data:=ss[i][1]
-        if //data==data2||
-        data1==ss[i][3] {     
-            SetRow(data1,
+        if  data1==ss[i][3] {     
+             w.Write([]string{data1,
             ss[i][1],
             ss[i][3],
             ss[i][5],
-            "Cymbalta CMP _CHPA_ BRAND_1_MAPPING")
+            "Cymbalta CMP _CHPA_ BRAND_1_MAPPING"})
         }
     } 
 }
 func WriteCompsDesc2(data1 string,data2 string){
     for i:=0;i<sz;i++{
         data:=ss[i][1]
-        if data==data2{     
-            SetRow(data1,
+        if data==data2{  
+
+             w.Write([]string{data1,
             ss[i][1],
             ss[i][3],
             ss[i][5],
-            "Cymbalta CMP _CHPA_ BRAND_1_MAPPING")
+            "Cymbalta CMP _CHPA_ BRAND_1_MAPPING"})
         }
     } 
 }
